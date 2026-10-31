@@ -90,7 +90,7 @@ Claude 코워크에서 대화로 짠 계획(일정)을 MCP로 업로드하면, �
 | 1 | Supabase 스키마 + MCP 서버 배포 + 커넥터 연결 | 코워크 대화 → DB 저장 | ✅ |
 | 2 | ICS 구독 URL | 아이폰 캘린더에 일정 표시 | ✅ |
 | 3 | 위젯 MVP (달력 + 오늘 일정, 로그인, 실시간) | 바탕화면 위젯 즉시 반영 | ✅ (이모지 표시, Win+D 대응 포함) |
-| 4 | 전체 창 (보기 전환, 편집) | 앱에서 일정 관리 | ⬜ |
+| 4 | 전체 창 (보기 전환, 편집) | 앱에서 일정 관리 | 🔄 구현 완료, 사용자 테스트 대기 (2026-11-01) |
 | 5 | 트레이, 자동 실행, 알림, 오프라인 캐시, 자동 업데이트, 설치 파일 | 새 PC 설치 → 로그인 → 바로 사용 | ⬜ |
 
 ## 11. 사용자 직접 작업 (Claude가 안내)
@@ -107,3 +107,8 @@ Claude 코워크에서 대화로 짠 계획(일정)을 MCP로 업로드하면, �
   - 비밀 값: `SUPABASE_SECRET_KEY` (wrangler secret)
 - MCP/ICS 전체 주소(토큰 포함): `secrets.local.txt` (git 제외)
 - claude.ai 커스텀 커넥터 이름: 클로드캘린더 (인증: 로그인 없음, 토큰은 URL에 포함)
+
+## 13. 개발 실행 방법
+- 개발 모드 실행: `cd app` → `npm.cmd run tauri dev` (VS Code 터미널에서 `npx`/`npm` 대신 `.cmd` 사용 — PowerShell 실행 정책)
+- 서버 재배포: `cd server` → `npx.cmd wrangler deploy`
+- DB 변경 SQL은 `supabase/` 폴더에 순서대로 (`schema.sql` → `seed-tokens.sql` → `002_emoji.sql`)
