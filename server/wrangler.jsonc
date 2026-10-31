@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cowork-calendar",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "SUPABASE_URL": "https://dfvcgacadkaglgtooxdy.supabase.co",
+    // 한국은 서머타임이 없어 고정 오프셋으로 충분
+    "TZ_OFFSET": "+09:00"
+  }
+  // 비밀 값: npx wrangler secret put SUPABASE_SECRET_KEY
+}

@@ -1,0 +1,6 @@
+secrets.local.txt
+node_modules/
+.wrangler/
+dist/
+target/
+.env*.local
