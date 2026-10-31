@@ -12,7 +12,7 @@ import {
 } from "./dates";
 import { supabase, type CalEvent } from "./supabase";
 import { useEvents, useRealtimeVersion } from "./useEvents";
-import { closeApp } from "./window";
+import { closeApp, openMainWindow } from "./window";
 
 const UPCOMING_DAYS = 7;
 const UPCOMING_MAX = 6;
@@ -98,6 +98,7 @@ export function Widget() {
         </button>
         {menuOpen && (
           <div className="menu">
+            <button onClick={() => openMainWindow(selected)}>전체 창 열기</button>
             <button onClick={goToday}>오늘로 이동</button>
             <button onClick={refresh}>새로고침</button>
             <button onClick={() => supabase.auth.signOut()}>로그아웃</button>
@@ -125,7 +126,13 @@ export function Widget() {
             .filter(Boolean)
             .join(" ");
           return (
-            <button key={+day} className={cls} onClick={() => setSelected(day)}>
+            <button
+              key={+day}
+              className={cls}
+              onClick={() => setSelected(day)}
+              onDoubleClick={() => openMainWindow(day)}
+              title="더블클릭: 전체 창"
+            >
               <span className="day-num">{day.getDate()}</span>
               <span className="marks">
                 {events.slice(0, MAX_MARKS).map((e) =>

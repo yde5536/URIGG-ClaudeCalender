@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase, type CalEvent } from "./supabase";
 
-const COLUMNS = "id,title,start_at,end_at,all_day,memo,color,emoji";
+export const COLUMNS = "id,title,start_at,end_at,all_day,memo,color,emoji";
 
 /** DB가 바뀔 때마다 증가하는 카운터. 이 값이 바뀌면 각 조회가 다시 실행된다. */
 export function useRealtimeVersion() {

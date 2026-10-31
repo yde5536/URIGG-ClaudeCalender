@@ -23,7 +23,8 @@
         "shadow": false,
         "alwaysOnBottom": true,
         "skipTaskbar": true,
-        "resizable": true
+        "resizable": true,
+        "maximizable": false
       }
     ],
     "security": {

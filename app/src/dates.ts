@@ -22,6 +22,18 @@ export const pad2 = (n: number) => String(n).padStart(2, "0");
 
 export const fmtTime = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
+/** "2026-11-05" (현지 날짜) */
+export const toDateKey = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+/** "2026-11-05" → 현지 0시. new Date("2026-11-05")는 UTC로 해석되므로 쓰지 않는다. */
+export function fromDateKey(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** <input type="datetime-local"> 값 "2026-11-05T14:00" */
+export const toLocalInput = (d: Date) => `${toDateKey(d)}T${fmtTime(d)}`;
+
 export const fmtDay = (d: Date) => `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAYS[d.getDay()]})`;
 
 export const fmtShortDay = (d: Date) => `${d.getMonth() + 1}/${d.getDate()} (${WEEKDAYS[d.getDay()]})`;
