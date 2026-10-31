@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { toLocalDate, type EventRow } from "./time.js";
 
-const COLUMNS = "id,title,start_at,end_at,all_day,memo,color,batch_id,source,updated_at";
+const COLUMNS = "id,title,start_at,end_at,all_day,memo,color,emoji,batch_id,source,updated_at";
 
 function escapeText(s: string): string {
   return s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
@@ -70,7 +70,7 @@ export async function buildIcs(db: SupabaseClient, userId: string, offset: strin
             `DTEND;VALUE=DATE:${dateStamp(e.end_at, offset)}`,
           ]
         : [`DTSTART:${utcStamp(e.start_at)}`, `DTEND:${utcStamp(e.end_at)}`]),
-      `SUMMARY:${escapeText(e.title)}`,
+      `SUMMARY:${escapeText(e.emoji ? `${e.emoji} ${e.title}` : e.title)}`,
       ...(e.memo ? [`DESCRIPTION:${escapeText(e.memo)}`] : []),
       "END:VEVENT",
     );

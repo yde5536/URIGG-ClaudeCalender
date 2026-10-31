@@ -16,4 +16,5 @@ export interface CalEvent {
   all_day: boolean;
   memo: string | null;
   color: string | null;
+  emoji: string | null;
 }

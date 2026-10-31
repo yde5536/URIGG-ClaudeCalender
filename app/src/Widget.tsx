@@ -16,6 +16,8 @@ import { closeApp } from "./window";
 
 const UPCOMING_DAYS = 7;
 const UPCOMING_MAX = 6;
+/** 날짜 칸 하나에 보여줄 이모지/점 개수 */
+const MAX_MARKS = 2;
 
 function useToday(): Date {
   const [today, setToday] = useState(() => startOfDay(new Date()));
@@ -35,6 +37,7 @@ function EventRow({ e, dayLabel }: { e: CalEvent; dayLabel?: string }) {
       <span className="event-bar" style={e.color ? { background: e.color } : undefined} />
       {dayLabel && <span className="event-day">{dayLabel}</span>}
       <span className="event-time">{eventTimeLabel(e)}</span>
+      {e.emoji && <span className="event-emoji">{e.emoji}</span>}
       <span className="event-title">{e.title}</span>
     </li>
   );
@@ -124,10 +127,17 @@ export function Widget() {
           return (
             <button key={+day} className={cls} onClick={() => setSelected(day)}>
               <span className="day-num">{day.getDate()}</span>
-              <span className="dots">
-                {events.slice(0, 3).map((e) => (
-                  <span key={e.id} className="dot" style={e.color ? { background: e.color } : undefined} />
-                ))}
+              <span className="marks">
+                {events.slice(0, MAX_MARKS).map((e) =>
+                  e.emoji ? (
+                    <span key={e.id} className="mark-emoji">
+                      {e.emoji}
+                    </span>
+                  ) : (
+                    <span key={e.id} className="dot" style={e.color ? { background: e.color } : undefined} />
+                  ),
+                )}
+                {events.length > MAX_MARKS && <span className="mark-more">+{events.length - MAX_MARKS}</span>}
               </span>
             </button>
           );

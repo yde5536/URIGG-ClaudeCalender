@@ -138,11 +138,13 @@ button {
 }
 
 .day-num {
-  width: 24px;
-  height: 24px;
-  line-height: 24px;
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
   border-radius: 50%;
   text-align: center;
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .sun .day-num,
@@ -169,10 +171,27 @@ button {
   font-weight: 700;
 }
 
-.dots {
+.marks {
   display: flex;
-  gap: 2px;
-  height: 4px;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  height: 16px;
+}
+
+.mark-emoji {
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  font-size: 13px;
+  line-height: 16px;
+}
+
+.mark-more {
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.day.other .marks {
+  opacity: 0.4;
 }
 
 .dot {
@@ -241,6 +260,11 @@ button {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   font-size: 12px;
+}
+
+.event-emoji {
+  flex: none;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
 }
 
 .event-title {

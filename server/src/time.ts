@@ -44,6 +44,7 @@ export interface EventInput {
   all_day?: boolean;
   memo?: string | null;
   color?: string | null;
+  emoji?: string | null;
 }
 
 export interface EventRow {
@@ -54,6 +55,7 @@ export interface EventRow {
   all_day: boolean;
   memo: string | null;
   color: string | null;
+  emoji: string | null;
   batch_id: string | null;
   source: string;
   updated_at: string;
@@ -83,6 +85,7 @@ export function normalizeEvent(input: EventInput, offset: string) {
     all_day: allDay,
     memo: input.memo?.trim() || null,
     color: input.color?.trim() || null,
+    emoji: input.emoji?.trim() || null,
   };
 }
 
@@ -98,6 +101,7 @@ export function rowToInput(row: EventRow, offset: string): EventInput {
         all_day: true,
         memo: row.memo,
         color: row.color,
+        emoji: row.emoji,
       }
     : {
         title: row.title,
@@ -106,6 +110,7 @@ export function rowToInput(row: EventRow, offset: string): EventInput {
         all_day: false,
         memo: row.memo,
         color: row.color,
+        emoji: row.emoji,
       };
 }
 

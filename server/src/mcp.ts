@@ -12,7 +12,7 @@ import {
   type EventRow,
 } from "./time.js";
 
-const COLUMNS = "id,title,start_at,end_at,all_day,memo,color,batch_id,source,updated_at";
+const COLUMNS = "id,title,start_at,end_at,all_day,memo,color,emoji,batch_id,source,updated_at";
 
 const eventFields = {
   title: z.string().min(1).max(200).describe("Event title"),
@@ -37,6 +37,13 @@ const eventFields = {
     .regex(/^#[0-9a-fA-F]{6}$/)
     .optional()
     .describe("Optional color as #RRGGBB"),
+  emoji: z
+    .string()
+    .max(16)
+    .describe(
+      "Exactly one emoji that matches the event, shown under the date on the desktop widget " +
+        "(e.g. 💼 meeting, 🏃 workout, 🏥 hospital, ✈️ trip, 🎂 birthday, 📚 study). Always choose one yourself.",
+    ),
 };
 
 function ok(data: unknown) {
@@ -56,7 +63,8 @@ export function buildMcpServer(db: SupabaseClient, userId: string, offset: strin
       instructions:
         "Personal calendar shown on the user's Windows desktop widget and iPhone. " +
         "All times are Korea time (UTC+09:00) unless an offset is given. " +
-        "Call list_events first to avoid overlaps. Use add_events to upload a whole plan at once; " +
+        "Call list_events first to avoid overlaps. Give every event a fitting emoji. " +
+        "Use add_events to upload a whole plan at once; " +
         "its batch_id can later undo the whole upload with delete_batch.",
     },
   );
@@ -129,6 +137,7 @@ export function buildMcpServer(db: SupabaseClient, userId: string, offset: strin
         start: eventFields.start.optional(),
         memo: z.string().max(2000).optional(),
         color: z.string().regex(/^(#[0-9a-fA-F]{6})?$/).optional(),
+        emoji: eventFields.emoji.optional(),
       },
     },
     async ({ id, ...changes }) => {
