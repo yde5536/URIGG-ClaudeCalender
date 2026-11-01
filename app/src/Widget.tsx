@@ -12,8 +12,10 @@ import {
 } from "./dates";
 import { supabase, type CalEvent } from "./supabase";
 import { Icon } from "./Icon";
-import { useEvents, useRealtimeVersion } from "./useEvents";
-import { closeApp, openMainWindow, startWidgetResize } from "./window";
+import { listen } from "@tauri-apps/api/event";
+import { startAutoUpdate } from "./updater";
+import { clearEventCache, useEvents, useRealtimeVersion } from "./useEvents";
+import { OPEN_MAIN_EVENT, closeApp, openMainWindow, startWidgetResize } from "./window";
 
 const UPCOMING_DAYS = 7;
 const UPCOMING_MAX = 6;
@@ -75,6 +77,16 @@ export function Widget() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { version, refresh } = useRealtimeVersion();
   const [opacity, setOpacity] = useWidgetOpacity();
+
+  // 트레이 아이콘·두 번째 실행에서 온 "전체 창 열기", 그리고 자동 업데이트 (위젯 창에서만)
+  useEffect(() => {
+    const unlisten = listen(OPEN_MAIN_EVENT, () => openMainWindow());
+    const stopUpdates = startAutoUpdate();
+    return () => {
+      unlisten.then((f) => f());
+      stopUpdates();
+    };
+  }, []);
 
   // 자정이 지나면 "오늘"을 보고 있던 선택도 새 날짜로
   useEffect(() => {
@@ -141,7 +153,14 @@ export function Widget() {
               </span>
             </div>
             <div className="menu-sep" />
-            <button onClick={() => supabase.auth.signOut()}>로그아웃</button>
+            <button
+              onClick={() => {
+                clearEventCache();
+                supabase.auth.signOut();
+              }}
+            >
+              로그아웃
+            </button>
             <button onClick={closeApp}>종료</button>
           </div>
         )}
@@ -213,7 +232,7 @@ export function Widget() {
             </ul>
           </>
         )}
-        {error && <p className="error">불러오기 실패: {error}</p>}
+        {error && <p className="error">{error}</p>}
       </section>
       <div className="resize-grip" onMouseDown={startWidgetResize} title="크기 조절" aria-hidden="true" />
     </div>

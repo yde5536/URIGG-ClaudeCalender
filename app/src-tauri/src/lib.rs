@@ -1,149 +1,197 @@
-use tauri::Manager;
-
 #[cfg(windows)]
-mod desktop {
-    use windows_sys::core::BOOL;
-    use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
-    use windows_sys::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
-    use windows_sys::Win32::Graphics::Gdi::{
-        RedrawWindow, ScreenToClient, RDW_ALLCHILDREN, RDW_ERASE, RDW_FRAME, RDW_INVALIDATE,
-    };
-    use windows_sys::Win32::UI::WindowsAndMessaging::{
-        EnumWindows, FindWindowExW, FindWindowW, GetParent, GetWindow, GetWindowLongPtrW, GetWindowRect,
-        IsWindowVisible, SetParent, SetWindowLongPtrW, SetWindowPos, ShowWindow, GWL_STYLE, GW_CHILD, HWND_TOP,
-        SW_HIDE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, WM_NCACTIVATE, WM_NCPAINT,
-        SWP_NOSIZE, SWP_SHOWWINDOW, WS_CAPTION, WS_CHILD, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU,
-        WS_THICKFRAME,
-    };
+mod desktop;
 
-    fn wide(s: &str) -> Vec<u16> {
-        s.encode_utf16().chain(std::iter::once(0)).collect()
-    }
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
-    unsafe extern "system" fn find_icon_host(hwnd: HWND, out: LPARAM) -> BOOL {
-        let defview = wide("SHELLDLL_DefView");
-        unsafe {
-            if !FindWindowExW(hwnd, std::ptr::null_mut(), defview.as_ptr(), std::ptr::null()).is_null() {
-                *(out as *mut HWND) = hwnd;
-                return 0;
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, WebviewWindow, WebviewWindowBuilder, WindowEvent};
+use tauri_plugin_autostart::ManagerExt;
+
+const WIDGET: &str = "widget";
+/// 위젯 쪽 JS에 전체 창을 열어달라고 보내는 이벤트 (전체 창 여는 코드는 JS에 있다)
+const OPEN_MAIN_EVENT: &str = "open-main";
+/// 사용자가 "자동 실행"을 끈 적이 있으면 생기는 표시 파일. 없으면 설치판은 자동 실행을 켠다.
+const AUTOSTART_OFF_MARKER: &str = "autostart-disabled";
+
+/// 사용자가 직접 종료할 때만 true. 그 외에 창이 사라지면(탐색기 재시작 등) 위젯을 다시 띄운다.
+static QUITTING: AtomicBool = AtomicBool::new(false);
+
+fn quit(app: &AppHandle) {
+    QUITTING.store(true, Ordering::SeqCst);
+    app.exit(0);
+}
+
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    quit(&app);
+}
+
+fn open_main(app: &AppHandle) {
+    let _ = app.emit_to(WIDGET, OPEN_MAIN_EVENT, ());
+}
+
+/// 위젯을 바탕화면에 넣고, 바탕화면이 바뀌어도 계속 붙어 있도록 주기적으로 확인한다.
+fn setup_widget(window: &WebviewWindow) {
+    #[cfg(windows)]
+    if let Ok(hwnd) = window.hwnd() {
+        let hwnd = hwnd.0 as isize;
+        desktop::suppress_caption(hwnd);
+        desktop::embed(hwnd);
+        std::thread::spawn(move || {
+            while desktop::is_alive(hwnd) {
+                std::thread::sleep(Duration::from_secs(3));
+                desktop::embed(hwnd);
             }
-        }
-        1
+        });
     }
+    #[cfg(not(windows))]
+    let _ = window;
+}
 
-    /// 바탕화면 아이콘(SHELLDLL_DefView)을 담고 있는 창.
-    /// 보통 Progman이지만, 움직이는 배경화면 프로그램을 쓰면 WorkerW로 옮겨진다.
-    fn icon_host() -> HWND {
-        let mut host: HWND = std::ptr::null_mut();
-        unsafe {
-            EnumWindows(Some(find_icon_host), &mut host as *mut HWND as LPARAM);
-            if host.is_null() {
-                host = FindWindowW(wide("Progman").as_ptr(), std::ptr::null());
+/// 위젯은 탐색기 창의 자식이라 탐색기가 재시작되면 함께 사라진다. 바탕화면이 다시 생기면 새로 만든다.
+fn recreate_widget(app: AppHandle) {
+    std::thread::spawn(move || {
+        #[cfg(windows)]
+        while !desktop::desktop_ready() {
+            std::thread::sleep(Duration::from_secs(1));
+        }
+        // 바탕화면 구성이 끝날 때까지 조금 더 기다린다
+        std::thread::sleep(Duration::from_secs(2));
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            if handle.get_webview_window(WIDGET).is_some() {
+                return;
             }
-        }
-        host
-    }
-
-    /// Tauri가 테두리 없는 창의 가장자리 크기 조절용으로 덮어두는 투명 창.
-    /// 자식 창이 되면 투명하게 그려지지 않고(제목 글씨가 비침) 크기 조절도 엉뚱한 창에 걸리므로 숨긴다.
-    /// 크기 조절은 위젯 오른쪽 아래 손잡이가 대신한다.
-    unsafe fn hide_resize_borders(hwnd: HWND) {
-        let class = wide("TAURI_DRAG_RESIZE_BORDERS");
-        unsafe {
-            let borders = FindWindowExW(hwnd, std::ptr::null_mut(), class.as_ptr(), std::ptr::null());
-            if !borders.is_null() && IsWindowVisible(borders) != 0 {
-                ShowWindow(borders, SW_HIDE);
+            let Some(config) = handle.config().app.windows.iter().find(|w| w.label == WIDGET).cloned() else {
+                return;
+            };
+            if let Ok(window) = WebviewWindowBuilder::from_config(&handle, &config).and_then(|b| b.build()) {
+                setup_widget(&window);
             }
+        });
+    });
+}
+
+/// 위젯이 화면 밖으로 나가 찾을 수 없을 때를 위해 주 모니터 오른쪽 위로 되돌린다.
+fn reset_widget_position(app: &AppHandle) {
+    let Some(window) = app.get_webview_window(WIDGET) else { return };
+    let (Ok(Some(monitor)), Ok(size)) = (window.primary_monitor(), window.outer_size()) else { return };
+    let margin = (48.0 * monitor.scale_factor()) as i32;
+    let x = monitor.position().x + monitor.size().width as i32 - size.width as i32 - margin;
+    let y = monitor.position().y + margin;
+    #[cfg(windows)]
+    if let Ok(hwnd) = window.hwnd() {
+        desktop::move_to(hwnd.0 as isize, x, y);
+    }
+}
+
+fn autostart_marker(app: &AppHandle) -> Option<std::path::PathBuf> {
+    app.path().app_config_dir().ok().map(|dir| dir.join(AUTOSTART_OFF_MARKER))
+}
+
+fn toggle_autostart(app: &AppHandle, item: &CheckMenuItem<tauri::Wry>) {
+    let launcher = app.autolaunch();
+    let enabled = launcher.is_enabled().unwrap_or(false);
+    let marker = autostart_marker(app);
+    if enabled {
+        let _ = launcher.disable();
+        if let Some(marker) = marker {
+            let _ = std::fs::create_dir_all(marker.parent().unwrap());
+            let _ = std::fs::write(marker, "");
+        }
+    } else {
+        let _ = launcher.enable();
+        if let Some(marker) = marker {
+            let _ = std::fs::remove_file(marker);
         }
     }
+    let _ = item.set_checked(launcher.is_enabled().unwrap_or(false));
+}
 
-    /// 창이 활성화될 때 Windows는 제목줄이 없어도 창 표면에 제목 글씨를 그린다(DefWindowProc의 WM_NCACTIVATE/WM_NCPAINT).
-    /// 일반 창은 Tauri가 막아주지만 자식 창이 된 위젯은 안 막히므로, 그 두 메시지를 그리지 않고 처리한다.
-    unsafe extern "system" fn no_caption_proc(
-        hwnd: HWND,
-        msg: u32,
-        wparam: WPARAM,
-        lparam: LPARAM,
-        _id: usize,
-        _data: usize,
-    ) -> LRESULT {
-        match msg {
-            WM_NCACTIVATE => 1,
-            WM_NCPAINT => 0,
-            _ => unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) },
-        }
-    }
+fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+    let open = MenuItem::with_id(app, "open", "전체 창 열기", true, None::<&str>)?;
+    let reset = MenuItem::with_id(app, "reset", "위젯 위치 초기화", true, None::<&str>)?;
+    let autostart = CheckMenuItem::with_id(
+        app,
+        "autostart",
+        "Windows 시작 시 실행",
+        true,
+        app.autolaunch().is_enabled().unwrap_or(false),
+        None::<&str>,
+    )?;
+    let quit_item = MenuItem::with_id(app, "quit", "종료", true, None::<&str>)?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &open,
+            &reset,
+            &PredefinedMenuItem::separator(app)?,
+            &autostart,
+            &PredefinedMenuItem::separator(app)?,
+            &quit_item,
+        ],
+    )?;
 
-    /// 창을 만든 스레드(메인 스레드)에서 한 번 호출해야 한다.
-    pub fn suppress_caption(hwnd: isize) {
-        unsafe {
-            SetWindowSubclass(hwnd as HWND, Some(no_caption_proc), 1, 0);
-        }
-    }
-
-    /// 위젯을 바탕화면 아이콘 창의 자식 창으로 넣는다.
-    /// 바탕화면의 일부가 되므로 다른 창들 위로 올라오지 않고, Win+D를 눌러도 바탕화면과 함께 보인다.
-    /// 아이콘 층(SHELLDLL_DefView)보다 위에 둬야 클릭이 위젯으로 온다.
-    pub fn embed(hwnd: isize) {
-        let hwnd = hwnd as HWND;
-        let host = icon_host();
-        if host.is_null() {
-            return;
-        }
-        unsafe {
-            if GetParent(hwnd) != host {
-                // 화면 좌표를 기억했다가 부모 기준 좌표로 바꿔 같은 자리에 둔다
-                let mut r: RECT = std::mem::zeroed();
-                GetWindowRect(hwnd, &mut r);
-                // 자식 창에 제목줄·테두리 속성이 남아 있으면 Windows가 옛날식 제목줄을 직접 그리므로 모두 뺀다
-                let frame = (WS_POPUP | WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX) as isize;
-                let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-                SetWindowLongPtrW(hwnd, GWL_STYLE, (style & !frame) | WS_CHILD as isize);
-                SetParent(hwnd, host);
-                let mut pt = POINT { x: r.left, y: r.top };
-                ScreenToClient(host, &mut pt);
-                SetWindowPos(
-                    hwnd,
-                    HWND_TOP,
-                    pt.x,
-                    pt.y,
-                    0,
-                    0,
-                    SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_FRAMECHANGED,
-                );
-                // 스타일을 바꾸기 전 잠깐 그려진 제목줄이 바탕화면에 잔상으로 남지 않게 다시 그린다
-                RedrawWindow(host, std::ptr::null(), std::ptr::null_mut(), RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_FRAME);
+    TrayIconBuilder::with_id("tray")
+        .icon(app.default_window_icon().cloned().expect("app icon"))
+        .tooltip("코워크 캘린더")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(move |app, event| match event.id.as_ref() {
+            "open" => open_main(app),
+            "reset" => reset_widget_position(app),
+            "autostart" => toggle_autostart(app, &autostart),
+            "quit" => quit(app),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                open_main(tray.app_handle());
             }
-            hide_resize_borders(hwnd);
-            if GetWindow(host, GW_CHILD) != hwnd {
-                // 탐색기가 아이콘 층을 다시 위로 올리면 위젯을 맨 위로
-                SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-            }
-        }
-    }
+        })
+        .build(app)?;
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // 두 번째로 실행하면 새로 띄우지 않고 전체 창을 연다 (가장 먼저 등록해야 한다)
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| open_main(app)))
         // 위젯 위치·크기를 PC별로 기억
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
+        .invoke_handler(tauri::generate_handler![quit_app])
         .setup(|app| {
-            #[cfg(windows)]
-            if let Some(widget) = app.get_webview_window("widget") {
-                if let Ok(hwnd) = widget.hwnd() {
-                    let hwnd = hwnd.0 as isize;
-                    desktop::suppress_caption(hwnd);
-                    desktop::embed(hwnd);
-                    // 배경화면 프로그램이 아이콘 창을 바꾸거나 아이콘 층을 위로 올릴 수 있어 주기적으로 다시 확인
-                    std::thread::spawn(move || loop {
-                        std::thread::sleep(std::time::Duration::from_secs(3));
-                        desktop::embed(hwnd);
-                    });
-                }
+            let handle = app.handle();
+            // 설치판은 처음 실행할 때 자동 실행을 켠다 (개발판은 개발용 exe가 등록되지 않게 건너뜀)
+            #[cfg(not(debug_assertions))]
+            if autostart_marker(handle).is_some_and(|m| !m.exists()) {
+                let _ = handle.autolaunch().enable();
+            }
+            build_tray(handle)?;
+            if let Some(widget) = app.get_webview_window(WIDGET) {
+                setup_widget(&widget);
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .on_window_event(|window, event| {
+            if window.label() == WIDGET && matches!(event, WindowEvent::Destroyed) && !QUITTING.load(Ordering::SeqCst) {
+                recreate_widget(window.app_handle().clone());
+            }
+        })
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, event| {
+            // 창이 모두 닫혀도(전체 창을 닫거나 위젯이 잠깐 사라져도) 트레이에서 계속 실행
+            if let RunEvent::ExitRequested { code, api, .. } = event {
+                if code.is_none() && !QUITTING.load(Ordering::SeqCst) {
+                    api.prevent_exit();
+                }
+            }
+        });
 }

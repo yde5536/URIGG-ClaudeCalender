@@ -91,7 +91,7 @@ Claude 코워크에서 대화로 짠 계획(일정)을 MCP로 업로드하면, �
 | 2 | ICS 구독 URL | 아이폰 캘린더에 일정 표시 | ✅ |
 | 3 | 위젯 MVP (달력 + 오늘 일정, 로그인, 실시간) | 바탕화면 위젯 즉시 반영 | ✅ (이모지 표시, Win+D 대응 포함) |
 | 4 | 전체 창 (보기 전환, 편집) | 앱에서 일정 관리 | ✅ (taste-skill 디자인 적용) |
-| 5 | 트레이, 자동 실행, 알림, 오프라인 캐시, 자동 업데이트, 설치 파일 | 새 PC 설치 → 로그인 → 바로 사용 | ⬜ |
+| 5 | 트레이, 자동 실행, 알림, 오프라인 캐시, 자동 업데이트, 설치 파일 | 새 PC 설치 → 로그인 → 바로 사용 | 🔄 v0.1.0 빌드, 설치 테스트 대기 |
 
 ## 11. 사용자 직접 작업 (Claude가 안내)
 1. Supabase 가입
@@ -112,3 +112,16 @@ Claude 코워크에서 대화로 짠 계획(일정)을 MCP로 업로드하면, �
 - 개발 모드 실행: `cd app` → `npm.cmd run tauri dev` (VS Code 터미널에서 `npx`/`npm` 대신 `.cmd` 사용 — PowerShell 실행 정책)
 - 서버 재배포: `cd server` → `npx.cmd wrangler deploy`
 - DB 변경 SQL은 `supabase/` 폴더에 순서대로 (`schema.sql` → `seed-tokens.sql` → `002_emoji.sql`)
+
+## 14. 배포 (5단계)
+- 설치 파일: NSIS (`CoworkCalendar_<버전>_x64-setup.exe`), 사용자 단위 설치(관리자 권한 불필요)
+- 자동 업데이트: 앱이 시작 15초 뒤, 이후 6시간마다 `releases/latest/download/latest.json` 확인 → 새 버전이면 설치 후 재시작
+- 업데이트 서명 키: `%USERPROFILE%\.tauri\coworkcal.key` (비밀번호 없음). **잃어버리면 기존 설치본은 더 이상 업데이트 불가 — 백업 필수**
+- 새 버전 내는 법:
+  1. `app/src-tauri/tauri.conf.json`의 `version` 올리기
+  2. 서명 빌드: `$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content $env:USERPROFILE\.tauri\coworkcal.key -Raw; $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""; cd app; npm.cmd run tauri build`
+  3. 커밋·푸시 후 저장소 루트에서 `node scripts/release.mjs "바뀐 점"`
+- 트레이: 전체 창 열기 / 위젯 위치 초기화 / Windows 시작 시 실행 / 종료
+- 탐색기가 재시작돼 위젯이 사라지면 바탕화면이 다시 생길 때 자동으로 다시 띄움
+- 오프라인: 위젯이 마지막으로 받은 일정을 PC에 저장해 두고 연결이 끊기면 그것을 표시
+- 알림 기능은 사용자 요청으로 제외

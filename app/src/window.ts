@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { emitTo } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -5,6 +6,8 @@ import { toDateKey } from "./dates";
 
 export const MAIN_LABEL = "main";
 export const GOTO_DATE_EVENT = "goto-date";
+/** 트레이 아이콘이나 두 번째 실행에서 보내는 "전체 창 열기" (lib.rs와 같은 이름) */
+export const OPEN_MAIN_EVENT = "open-main";
 
 export const isMainWindow = () => getCurrentWindow().label === MAIN_LABEL;
 
@@ -33,9 +36,5 @@ export async function openMainWindow(date?: Date) {
 /** 위젯 오른쪽 아래 손잡이로 크기 조절 (바탕화면에 넣은 위젯은 가장자리 조절이 안 된다) */
 export const startWidgetResize = () => getCurrentWindow().startResizeDragging("SouthEast");
 
-/** 앱 종료: 전체 창이 열려 있으면 함께 닫는다 */
-export async function closeApp() {
-  const main = await WebviewWindow.getByLabel(MAIN_LABEL);
-  if (main) await main.destroy();
-  await getCurrentWindow().close();
-}
+/** 앱 종료. 창만 닫으면 트레이에 남거나 위젯이 다시 뜨므로 Rust 쪽에서 종료한다. */
+export const closeApp = () => invoke("quit_app");

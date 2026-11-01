@@ -29,12 +29,49 @@ export function useRealtimeVersion() {
   return { version, refresh: () => setVersion((v) => v + 1) };
 }
 
-/** [from, to) 구간과 겹치는 일정 */
+const cacheKey = (fromIso: string, toIso: string) => `events:${fromIso}|${toIso}`;
+
+/** 오프라인일 때 보여줄 수 있게 마지막으로 받은 일정을 이 PC에 저장해 둔다 */
+function readCache(key: string): CalEvent[] | null {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as CalEvent[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(key: string, events: CalEvent[]) {
+  try {
+    localStorage.setItem(key, JSON.stringify(events));
+  } catch {
+    /* 저장 공간이 없으면 캐시 없이 동작 */
+  }
+}
+
+/** 로그아웃할 때 이 PC에 저장해 둔 일정을 지운다 */
+export function clearEventCache() {
+  try {
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith("events:"))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* 저장소를 못 쓰면 지울 것도 없음 */
+  }
+}
+
+/** [from, to) 구간과 겹치는 일정. 불러오지 못하면 저장해 둔 일정을 그대로 보여준다. */
 export function useEvents(from: Date, to: Date, version: number) {
-  const [events, setEvents] = useState<CalEvent[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const fromIso = from.toISOString();
   const toIso = to.toISOString();
+  const key = cacheKey(fromIso, toIso);
+  const [events, setEvents] = useState<CalEvent[]>(() => readCache(key) ?? []);
+  const [error, setError] = useState<string | null>(null);
+
+  // 구간이 바뀌면 저장된 일정부터 바로 보여준다
+  useEffect(() => {
+    setEvents(readCache(key) ?? []);
+  }, [key]);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,16 +84,18 @@ export function useEvents(from: Date, to: Date, version: number) {
       .limit(1000)
       .then(({ data, error }) => {
         if (cancelled) return;
-        if (error) setError(error.message);
-        else {
+        if (error) {
+          setError(readCache(key) ? "연결할 수 없어 저장된 일정을 보여주는 중" : `불러오기 실패: ${error.message}`);
+        } else {
           setError(null);
           setEvents(data as CalEvent[]);
+          writeCache(key, data as CalEvent[]);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [fromIso, toIso, version]);
+  }, [fromIso, toIso, key, version]);
 
   return { events, error };
 }
