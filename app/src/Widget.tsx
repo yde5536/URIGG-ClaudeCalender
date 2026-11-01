@@ -11,6 +11,7 @@ import {
   startOfDay,
 } from "./dates";
 import { supabase, type CalEvent } from "./supabase";
+import { Icon } from "./Icon";
 import { useEvents, useRealtimeVersion } from "./useEvents";
 import { closeApp, openMainWindow } from "./window";
 
@@ -18,6 +19,30 @@ const UPCOMING_DAYS = 7;
 const UPCOMING_MAX = 6;
 /** 날짜 칸 하나에 보여줄 이모지/점 개수 */
 const MAX_MARKS = 2;
+
+const OPACITY_STEPS = [1, 0.9, 0.8, 0.7];
+const OPACITY_KEY = "widgetOpacity";
+
+/** 위젯 배경 불투명도. 이 PC에만 저장된다. */
+function useWidgetOpacity() {
+  const [opacity, setOpacity] = useState(() => {
+    try {
+      const v = Number(localStorage.getItem(OPACITY_KEY));
+      return OPACITY_STEPS.includes(v) ? v : 0.9;
+    } catch {
+      return 0.9;
+    }
+  });
+  useEffect(() => {
+    document.documentElement.style.setProperty("--widget-opacity", String(opacity));
+    try {
+      localStorage.setItem(OPACITY_KEY, String(opacity));
+    } catch {
+      /* 저장 실패해도 이번 실행에는 적용됨 */
+    }
+  }, [opacity]);
+  return [opacity, setOpacity] as const;
+}
 
 function useToday(): Date {
   const [today, setToday] = useState(() => startOfDay(new Date()));
@@ -34,7 +59,7 @@ function useToday(): Date {
 function EventRow({ e, dayLabel }: { e: CalEvent; dayLabel?: string }) {
   return (
     <li className="event" title={e.memo ?? undefined}>
-      <span className="event-bar" style={e.color ? { background: e.color } : undefined} />
+      {e.color && <span className="event-bar" style={{ background: e.color }} />}
       {dayLabel && <span className="event-day">{dayLabel}</span>}
       <span className="event-time">{eventTimeLabel(e)}</span>
       {e.emoji && <span className="event-emoji">{e.emoji}</span>}
@@ -49,6 +74,7 @@ export function Widget() {
   const [selected, setSelected] = useState(today);
   const [menuOpen, setMenuOpen] = useState(false);
   const { version, refresh } = useRealtimeVersion();
+  const [opacity, setOpacity] = useWidgetOpacity();
 
   // 자정이 지나면 "오늘"을 보고 있던 선택도 새 날짜로
   useEffect(() => {
@@ -76,14 +102,14 @@ export function Widget() {
   return (
     <div className="panel" onClick={() => menuOpen && setMenuOpen(false)}>
       <header className="header" data-tauri-drag-region>
-        <button className="icon-btn" onClick={() => shiftMonth(-1)} title="이전 달">
-          ‹
+        <button className="icon-btn" onClick={() => shiftMonth(-1)} title="이전 달" aria-label="이전 달">
+          <Icon name="prev" />
         </button>
         <span className="title" data-tauri-drag-region>
           {cursor.getFullYear()}년 {cursor.getMonth() + 1}월
         </span>
-        <button className="icon-btn" onClick={() => shiftMonth(1)} title="다음 달">
-          ›
+        <button className="icon-btn" onClick={() => shiftMonth(1)} title="다음 달" aria-label="다음 달">
+          <Icon name="next" />
         </button>
         <span className="spacer" data-tauri-drag-region />
         <button
@@ -93,14 +119,27 @@ export function Widget() {
             setMenuOpen((o) => !o);
           }}
           title="메뉴"
+          aria-label="메뉴"
         >
-          ⋯
+          <Icon name="more" />
         </button>
         {menuOpen && (
           <div className="menu">
             <button onClick={() => openMainWindow(selected)}>전체 창 열기</button>
             <button onClick={goToday}>오늘로 이동</button>
             <button onClick={refresh}>새로고침</button>
+            <div className="menu-sep" />
+            <div className="menu-row" onClick={(ev) => ev.stopPropagation()}>
+              불투명도
+              <span className="opacity-steps">
+                {OPACITY_STEPS.map((v) => (
+                  <button key={v} className={v === opacity ? "on" : ""} onClick={() => setOpacity(v)}>
+                    {Math.round(v * 100)}
+                  </button>
+                ))}
+              </span>
+            </div>
+            <div className="menu-sep" />
             <button onClick={() => supabase.auth.signOut()}>로그아웃</button>
             <button onClick={closeApp}>종료</button>
           </div>

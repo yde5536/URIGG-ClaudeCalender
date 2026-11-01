@@ -3,7 +3,8 @@ import { addDays, fromDateKey, toDateKey, toLocalInput } from "./dates";
 import { deleteEvent, saveEvent } from "./eventsApi";
 import type { CalEvent } from "./supabase";
 
-const QUICK_EMOJIS = ["💼", "📅", "📞", "🍽️", "☕", "🏃", "🏋️", "🏥", "📚", "✈️", "🎂", "🎉", "🛒", "🏠", "🚗", "💻"];
+// 일정 이모지는 사용자가 요청한 핵심 기능 (taste-skill 이모지 규칙의 의도된 예외)
+const QUICK_EMOJIS = ["💼", "📅", "📞", "🍽️", "☕", "🏃", "🏋️", "🏥", "📚", "✈️", "🎂", "🎉", "🛒", "🏠", "🚗", "💻"]; // taste-skill-ignore
 const COLORS = ["#6aa8ff", "#5ccf8f", "#f6c453", "#ff8a5c", "#ff6b8b", "#b48cff", "#8b90a0"];
 
 /** 날짜/시간을 입력란 형식으로 들고 있는 편집용 상태 */
@@ -105,72 +106,107 @@ export function EventDialog({ target, onClose }: { target: DialogTarget; onClose
       <form className="dialog" onMouseDown={(e) => e.stopPropagation()} onSubmit={submit}>
         <h3>{id ? "일정 수정" : "새 일정"}</h3>
 
-        <div className="row">
-          <input
-            className="emoji-input"
-            value={d.emoji}
-            onChange={(e) => set("emoji", e.target.value)}
-            placeholder="🙂"
-            maxLength={16}
-            title="이모지 (Win + . 으로 입력)"
-          />
-          <input
-            className="grow"
-            value={d.title}
-            onChange={(e) => set("title", e.target.value)}
-            placeholder="제목"
-            maxLength={200}
-            required
-            autoFocus
-          />
-        </div>
-        <div className="emoji-picks">
-          {QUICK_EMOJIS.map((em) => (
-            <button type="button" key={em} className={d.emoji === em ? "on" : ""} onClick={() => set("emoji", em)}>
-              {em}
-            </button>
-          ))}
+        <div className="field">
+          <label htmlFor="ev-title">제목</label>
+          <div className="row">
+            <input
+              className="emoji-input"
+              value={d.emoji}
+              onChange={(e) => set("emoji", e.target.value)}
+              maxLength={16}
+              aria-label="이모지"
+              title="이모지 (Win + . 으로 입력)"
+            />
+            <input
+              id="ev-title"
+              className="grow"
+              value={d.title}
+              onChange={(e) => set("title", e.target.value)}
+              maxLength={200}
+              required
+              autoFocus
+            />
+          </div>
+          <div className="emoji-picks" aria-label="이모지 빠른 선택">
+            {QUICK_EMOJIS.map((em) => (
+              <button type="button" key={em} className={d.emoji === em ? "on" : ""} onClick={() => set("emoji", em)}>
+                {em}
+              </button>
+            ))}
+          </div>
         </div>
 
+        <div className="field">
+          <span className="field-label">{d.allDay ? "날짜 (마지막 날 포함)" : "시간"}</span>
+          {d.allDay ? (
+            <div className="row">
+              <input
+                type="date"
+                aria-label="시작일"
+                value={d.startDate}
+                onChange={(e) => set("startDate", e.target.value)}
+                required
+              />
+              <span className="sep">~</span>
+              <input
+                type="date"
+                aria-label="마지막 날"
+                value={d.endDate}
+                onChange={(e) => set("endDate", e.target.value)}
+                required
+              />
+            </div>
+          ) : (
+            <div className="row">
+              <input
+                type="datetime-local"
+                aria-label="시작"
+                value={d.startTime}
+                onChange={(e) => set("startTime", e.target.value)}
+                required
+              />
+              <span className="sep">~</span>
+              <input
+                type="datetime-local"
+                aria-label="종료"
+                value={d.endTime}
+                onChange={(e) => set("endTime", e.target.value)}
+                required
+              />
+            </div>
+          )}
+        </div>
         <label className="check">
           <input type="checkbox" checked={d.allDay} onChange={(e) => set("allDay", e.target.checked)} />
           종일
         </label>
 
-        {d.allDay ? (
-          <div className="row">
-            <input type="date" value={d.startDate} onChange={(e) => set("startDate", e.target.value)} required />
-            <span className="sep">~</span>
-            <input type="date" value={d.endDate} onChange={(e) => set("endDate", e.target.value)} required />
-          </div>
-        ) : (
-          <div className="row">
-            <input
-              type="datetime-local"
-              value={d.startTime}
-              onChange={(e) => set("startTime", e.target.value)}
-              required
-            />
-            <span className="sep">~</span>
-            <input type="datetime-local" value={d.endTime} onChange={(e) => set("endTime", e.target.value)} required />
-          </div>
-        )}
+        <div className="field">
+          <label htmlFor="ev-memo">메모</label>
+          <textarea id="ev-memo" value={d.memo} onChange={(e) => set("memo", e.target.value)} rows={3} />
+        </div>
 
-        <textarea value={d.memo} onChange={(e) => set("memo", e.target.value)} placeholder="메모" rows={3} />
-
-        <div className="colors">
-          <button type="button" className={`swatch none ${d.color === "" ? "on" : ""}`} onClick={() => set("color", "")}>
-            기본
-          </button>
-          {COLORS.map((c) => (
+        <div className="field">
+          <span className="field-label">색</span>
+          <div className="colors">
             <button
               type="button"
-              key={c}
-              className={`swatch ${d.color === c ? "on" : ""}`}
-              style={{ background: c }}
-              onClick={() => set("color", c)}
-            />
-          ))}
+              className={`swatch none ${d.color === "" ? "on" : ""}`}
+              onClick={() => set("color", "")}
+            >
+              기본
+            </button>
+            {COLORS.map((c) => (
+              <button
+                type="button"
+                key={c}
+                aria-label={`색 ${c}`}
+                className={`swatch ${d.color === c ? "on" : ""}`}
+                style={{ background: c }}
+                onClick={() => set("color", c)}
+              />
+            ))}
+          </div>
         </div>
 
         {error && <p className="error">{error}</p>}

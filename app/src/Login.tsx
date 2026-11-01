@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { supabase } from "./supabase";
+import { Icon } from "./Icon";
 import { closeApp } from "./window";
 
 export function Login() {
@@ -23,16 +24,18 @@ export function Login() {
         <span className="title" data-tauri-drag-region>
           코워크 캘린더
         </span>
-        <button className="icon-btn" onClick={closeApp} title="종료">
-          ✕
+        <button className="icon-btn" onClick={closeApp} title="종료" aria-label="종료">
+          <Icon name="close" />
         </button>
       </header>
       <form className="login" onSubmit={submit}>
         <p className="login-hint">Supabase에 만든 계정으로 로그인하세요.</p>
-        <input type="email" placeholder="이메일" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <label htmlFor="login-email">이메일</label>
+        <input id="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <label htmlFor="login-password">비밀번호</label>
         <input
+          id="login-password"
           type="password"
-          placeholder="비밀번호"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required

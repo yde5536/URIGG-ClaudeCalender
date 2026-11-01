@@ -20,7 +20,8 @@ function toFcEvent(e: CalEvent): EventInput {
     start: e.start_at,
     end: e.end_at,
     allDay: e.all_day,
-    ...(e.color ? { backgroundColor: e.color, borderColor: e.color } : {}),
+    // 칩의 면은 공통, 지정한 색은 왼쪽 선에만
+    ...(e.color ? { borderColor: e.color } : {}),
     extendedProps: { row: e },
   };
 }
@@ -93,7 +94,25 @@ export function MainCalendar() {
         locale={koLocale}
         initialView="dayGridMonth"
         initialDate={initialDate}
-        headerToolbar={{ left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay" }}
+        headerToolbar={{
+          left: "prev,next today",
+          center: "title",
+          right: "dayGridMonth,timeGridWeek,timeGridDay newEvent",
+        }}
+        customButtons={{
+          newEvent: {
+            text: "새 일정",
+            click: () => {
+              // 보고 있는 날짜(오늘이 화면에 있으면 오늘)의 오전 9시로 시작
+              const api = calRef.current!.getApi();
+              const now = new Date();
+              const base = now >= api.view.activeStart && now < api.view.activeEnd ? now : api.getDate();
+              const start = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 9);
+              setDialog({ kind: "new", start, end: new Date(+start + 60 * 60_000), allDay: false });
+            },
+          },
+        }}
+        eventDisplay="block"
         height="100%"
         events={fetchEvents}
         eventContent={renderEvent}

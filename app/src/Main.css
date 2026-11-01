@@ -1,91 +1,212 @@
-/* ── 전체 창 (FullCalendar 다크 테마) ── */
+/* ── 전체 창 (FullCalendar) — App.css의 토큰 사용 ── */
 .main-app {
-  --fc-border-color: #2a2e38;
-  --fc-page-bg-color: #16181e;
-  --fc-neutral-bg-color: #1c1f27;
-  --fc-today-bg-color: rgba(106, 168, 255, 0.08);
-  --fc-event-bg-color: #3d74c4;
-  --fc-event-border-color: #3d74c4;
-  --fc-event-text-color: #fff;
-  --fc-button-text-color: var(--text);
-  --fc-button-bg-color: #242832;
-  --fc-button-border-color: #2f3440;
-  --fc-button-hover-bg-color: #2c313c;
-  --fc-button-hover-border-color: #383e4b;
-  --fc-button-active-bg-color: #3d74c4;
-  --fc-button-active-border-color: #3d74c4;
-  --fc-now-indicator-color: #ff6b6b;
-  --fc-highlight-color: rgba(106, 168, 255, 0.15);
+  --fc-border-color: var(--rule);
+  --fc-page-bg-color: var(--ground);
+  --fc-neutral-bg-color: var(--surface);
+  --fc-today-bg-color: transparent; /* 오늘은 배경 대신 앰버 선으로 */
+  --fc-event-bg-color: var(--raised);
+  --fc-event-border-color: var(--raised);
+  --fc-event-text-color: var(--text);
+  --fc-now-indicator-color: var(--accent);
+  --fc-highlight-color: rgba(242, 169, 59, 0.1);
+  --fc-small-font-size: var(--fs-small);
 
   position: relative;
   height: 100%;
-  padding: 14px 16px;
-  background: var(--fc-page-bg-color);
+  padding: 18px 22px 22px;
+  background: var(--ground);
 }
 
 .main-app .fc {
   height: 100%;
 }
 
+/* 툴바 */
+.main-app .fc .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 14px;
+}
+
 .main-app .fc .fc-toolbar-title {
-  font-size: 20px;
+  font-size: var(--fs-title);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .main-app .fc .fc-button {
-  font-size: 13px;
-  padding: 5px 12px;
+  height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: #bbbbbb;
+  font-size: var(--fs-body);
+  font-weight: 500;
   box-shadow: none !important;
+  transition: background-color 120ms, color 120ms;
 }
 
-.main-app .fc .fc-col-header-cell-cushion,
-.main-app .fc .fc-daygrid-day-number {
+.main-app .fc .fc-button:hover {
+  background: var(--surface);
   color: var(--text);
+}
+
+.main-app .fc .fc-button:disabled {
+  opacity: 0.4;
+  background: transparent;
+}
+
+/* 선택된 보기: 밝기로만 표시 */
+.main-app .fc .fc-button-primary:not(:disabled).fc-button-active,
+.main-app .fc .fc-button-primary:not(:disabled):active {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.main-app .fc .fc-button-group > .fc-button {
+  border-radius: var(--radius-control);
+  margin-left: 2px;
+}
+
+/* 주 버튼 "새 일정": 반전 알약 */
+.main-app .fc .fc-newEvent-button,
+.main-app .fc .fc-newEvent-button:hover {
+  margin-left: 10px;
+  background: var(--text);
+  color: #000;
+  font-weight: 600;
+}
+
+.main-app .fc .fc-newEvent-button:hover {
+  opacity: 0.9;
+}
+
+/* 표 바깥 테두리 제거, 안쪽 선은 아주 옅게 */
+.main-app .fc .fc-scrollgrid {
+  border: none;
+}
+
+.main-app .fc th {
+  border-color: transparent;
+}
+
+.main-app .fc .fc-col-header-cell-cushion {
+  padding: 8px 4px;
+  color: var(--faint);
+  font-size: var(--fs-small);
+  font-weight: 500;
   text-decoration: none;
 }
 
-.main-app .fc .fc-day-sun .fc-col-header-cell-cushion,
-.main-app .fc .fc-day-sun .fc-daygrid-day-number {
-  color: var(--sun);
-}
-
-.main-app .fc .fc-day-sat .fc-col-header-cell-cushion,
-.main-app .fc .fc-day-sat .fc-daygrid-day-number {
-  color: var(--sat);
+/* 주말은 한 단계 어둡게 */
+.main-app .fc .fc-day-sat,
+.main-app .fc .fc-day-sun {
+  background: #0a0909;
 }
 
 .main-app .fc .fc-daygrid-day-number {
+  position: relative;
+  padding: 8px 10px 4px;
+  color: var(--muted);
   font-size: 15px;
-  padding: 6px 8px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
 }
 
-.main-app .fc .fc-day-today .fc-daygrid-day-number {
-  color: var(--today);
+.main-app .fc .fc-day-other .fc-daygrid-day-number {
+  opacity: 0.35;
+}
+
+/* 오늘: 날짜는 흰 글자, 아래 앰버 선 */
+.main-app .fc .fc-day-today .fc-daygrid-day-number,
+.main-app .fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+  color: var(--text);
   font-weight: 700;
 }
 
-.main-app .fc-daygrid-more-link {
+.main-app .fc .fc-day-today .fc-daygrid-day-number::after,
+.main-app .fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.main-app .fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+  position: relative;
+}
+
+.main-app .fc .fc-daygrid-more-link {
+  color: var(--faint);
+  font-size: var(--fs-small);
+}
+
+.main-app .fc .fc-timegrid-slot-label-cushion,
+.main-app .fc .fc-timegrid-axis-cushion {
+  color: var(--faint);
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.main-app .fc .fc-timegrid-slot-minor {
+  border-top-style: none;
+}
+
+/* 일정 칩: 밝기 한 단계 위의 면. 색을 지정한 일정은 왼쪽 3px 선만 그 색 */
+.main-app .fc .fc-event {
+  border-width: 0 0 0 3px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.main-app .fc .fc-event:hover {
+  filter: brightness(1.2);
+}
+
+.main-app .fc .fc-daygrid-event {
+  margin-top: 2px;
+}
+
+.main-app .fc .fc-popover {
+  background: var(--surface);
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45); /* taste-skill-ignore: 떠 있는 요소 */
+}
+
+.main-app .fc .fc-popover-header {
+  background: transparent;
   color: var(--muted);
 }
 
-/* 일정 칩 */
 .fc-ev {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   overflow: hidden;
-  padding: 1px 3px;
-  font-size: 12px;
+  padding: 2px 5px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.fc-timegrid-event .fc-ev {
+  align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .fc-ev-emoji {
   flex: none;
-  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  font-family: var(--font-emoji);
 }
 
 .fc-ev-time {
   flex: none;
-  opacity: 0.85;
+  color: var(--muted);
+  font-size: var(--fs-small);
   font-variant-numeric: tabular-nums;
 }
 
@@ -95,25 +216,17 @@
   white-space: nowrap;
 }
 
-/* 월 보기에서 시간 일정은 칩 대신 글자색으로 */
-.main-app .fc-daygrid-dot-event .fc-ev {
-  color: var(--text);
-}
-
-.main-app .fc-daygrid-dot-event:hover {
-  background: var(--hover);
-}
-
 .toast {
   position: absolute;
   left: 50%;
-  bottom: 20px;
+  bottom: 24px;
   transform: translateX(-50%);
   z-index: 20;
   padding: 10px 16px;
-  border-radius: 10px;
-  background: #3a2027;
-  color: #ffb3b3;
+  border-radius: var(--radius-inner);
+  background: #2c1a20;
+  color: #e5566f;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45); /* taste-skill-ignore: 떠 있는 요소 */
   cursor: pointer;
 }
 
@@ -124,46 +237,57 @@
   z-index: 50;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.55);
 }
 
 .dialog {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: min(440px, calc(100vw - 32px));
-  padding: 20px;
-  border-radius: 14px;
-  background: #1f222a;
-  border: 1px solid var(--border);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6); /* taste-skill-ignore: 떠 있는 요소 */
 }
 
 .dialog h3 {
-  margin: 0 0 4px;
-  font-size: 16px;
+  margin: 0 0 18px;
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.field > label,
+.field-label {
+  font-size: var(--fs-small);
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .dialog input,
 .dialog textarea {
   font: inherit;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
+  background: var(--raised);
+  border: none;
+  border-radius: var(--radius-inner);
+  padding: 10px 12px;
   outline: none;
   user-select: text;
   color-scheme: dark;
 }
 
-.dialog input:focus,
-.dialog textarea:focus {
-  border-color: var(--accent);
-}
-
 .dialog textarea {
   resize: vertical;
+  min-height: 64px;
 }
 
 .dialog .row {
@@ -182,7 +306,7 @@
 }
 
 .dialog .sep {
-  color: var(--muted);
+  color: var(--faint);
 }
 
 .emoji-input {
@@ -190,7 +314,7 @@
   width: 52px;
   text-align: center;
   font-size: 18px;
-  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  font-family: var(--font-emoji);
 }
 
 .emoji-picks {
@@ -200,11 +324,12 @@
 }
 
 .emoji-picks button {
-  width: 30px;
-  height: 30px;
-  border-radius: 7px;
-  font-size: 16px;
-  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 17px;
+  font-family: var(--font-emoji);
+  transition: background-color 120ms;
 }
 
 .emoji-picks button:hover {
@@ -212,67 +337,86 @@
 }
 
 .emoji-picks button.on {
-  background: rgba(106, 168, 255, 0.25);
+  background: var(--raised);
 }
 
 .check {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  color: var(--muted);
   cursor: pointer;
+  margin: -4px 0 12px;
+}
+
+.check input {
+  accent-color: var(--text);
 }
 
 .colors {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .swatch {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  border: 2px solid transparent;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 120ms;
 }
 
 .swatch.none {
   width: auto;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 11px;
-  font-size: 11px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  font-size: var(--fs-small);
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--raised);
 }
 
 .swatch.on {
-  border-color: #fff;
+  outline-color: var(--text);
 }
 
 .actions {
   display: flex;
+  align-items: center;
   gap: 8px;
-  margin-top: 6px;
-}
-
-.actions button {
-  padding: 8px 14px;
-  border-radius: 8px;
-}
-
-.actions .primary {
-  margin-top: 0;
+  margin-top: 8px;
 }
 
 .ghost {
-  background: rgba(255, 255, 255, 0.06);
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  transition: background-color 120ms, color 120ms;
+}
+
+.ghost:hover {
+  background: var(--raised);
+  color: var(--text);
 }
 
 .ghost-danger {
-  color: #ff8a8a;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  color: var(--negative);
+}
+
+.ghost-danger:hover {
+  background: #2c1a20;
 }
 
 .danger {
-  background: #c94a4a;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--radius-control);
+  background: var(--negative);
   color: #fff;
+  font-weight: 600;
 }
