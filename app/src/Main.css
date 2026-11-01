@@ -1,6 +1,6 @@
 /* ── 전체 창 (FullCalendar) — App.css의 토큰 사용 ── */
 .main-app {
-  --fc-border-color: var(--rule);
+  --fc-border-color: #2e2b28; /* 칸 구분이 잘 보이도록 --rule보다 한 단계 밝게 */
   --fc-page-bg-color: var(--ground);
   --fc-neutral-bg-color: var(--surface);
   --fc-today-bg-color: transparent; /* 오늘은 배경 대신 앰버 선으로 */

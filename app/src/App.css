@@ -9,6 +9,7 @@
   --surface: #181716;
   --raised: #2a2826;
   --rule: #1f1d1b;
+  --grid-line: rgba(255, 255, 255, 0.1); /* 달력 격자 (반투명 위젯 위에서도 보이게) */
   --control: #444444;
   --text: #ffffff;
   --muted: #b4b4b4;
@@ -191,8 +192,23 @@ textarea:focus-visible {
   align-items: center;
   gap: 1px;
   padding: 5px 0 4px;
-  border-radius: var(--radius-inner);
+  border-right: 1px solid var(--grid-line);
+  border-bottom: 1px solid var(--grid-line);
   transition: background-color 120ms;
+}
+
+/* 격자: 첫 주 위에 선, 마지막 열·마지막 주는 바깥 선 없음
+   (.grid의 자식은 요일 머리 7칸 다음에 날짜 칸이 이어진다) */
+.day:nth-child(-n + 14) {
+  border-top: 1px solid var(--grid-line);
+}
+
+.day:nth-child(7n) {
+  border-right: none;
+}
+
+.day:nth-last-child(-n + 7) {
+  border-bottom: none;
 }
 
 .day:hover {
