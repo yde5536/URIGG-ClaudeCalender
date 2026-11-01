@@ -4,7 +4,9 @@ use tauri::Manager;
 mod desktop {
     use windows_sys::core::BOOL;
     use windows_sys::Win32::Foundation::{HWND, LPARAM, POINT, RECT};
-    use windows_sys::Win32::Graphics::Gdi::ScreenToClient;
+    use windows_sys::Win32::Graphics::Gdi::{
+        RedrawWindow, ScreenToClient, RDW_ALLCHILDREN, RDW_ERASE, RDW_FRAME, RDW_INVALIDATE,
+    };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         EnumWindows, FindWindowExW, FindWindowW, GetParent, GetWindow, GetWindowLongPtrW, GetWindowRect, SetParent,
         SetWindowLongPtrW, SetWindowPos, GWL_STYLE, GW_CHILD, HWND_TOP, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
@@ -70,6 +72,8 @@ mod desktop {
                     0,
                     SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_FRAMECHANGED,
                 );
+                // 스타일을 바꾸기 전 잠깐 그려진 제목줄이 바탕화면에 잔상으로 남지 않게 다시 그린다
+                RedrawWindow(host, std::ptr::null(), std::ptr::null_mut(), RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_FRAME);
             } else if GetWindow(host, GW_CHILD) != hwnd {
                 // 탐색기가 아이콘 층을 다시 위로 올리면 위젯을 맨 위로
                 SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
