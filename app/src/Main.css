@@ -81,8 +81,26 @@
 }
 
 /* 표 바깥 테두리 제거, 안쪽 선은 아주 옅게 */
-.main-app .fc .fc-scrollgrid {
+/* 격자는 칸 사이에만: 표 바깥 테두리와 가장자리 칸의 바깥쪽 선은 없앤다 */
+.main-app .fc .fc-scrollgrid,
+.main-app .fc .fc-scrollgrid-section > td {
   border: none;
+}
+
+.main-app .fc .fc-daygrid-day:first-child,
+.main-app .fc .fc-timegrid-col:first-child,
+.main-app .fc .fc-timegrid-axis {
+  border-left: none;
+}
+
+.main-app .fc .fc-daygrid-day:last-child,
+.main-app .fc .fc-timegrid-col:last-child,
+.main-app .fc .fc-timegrid-slot:last-child {
+  border-right: none;
+}
+
+.main-app .fc .fc-daygrid-body tr:last-child > td {
+  border-bottom: none;
 }
 
 .main-app .fc th {

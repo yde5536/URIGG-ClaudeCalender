@@ -197,12 +197,8 @@ textarea:focus-visible {
   transition: background-color 120ms;
 }
 
-/* 격자: 첫 주 위에 선, 마지막 열·마지막 주는 바깥 선 없음
+/* 격자는 칸 사이에만: 마지막 열·마지막 주는 바깥 선 없음
    (.grid의 자식은 요일 머리 7칸 다음에 날짜 칸이 이어진다) */
-.day:nth-child(-n + 14) {
-  border-top: 1px solid var(--grid-line);
-}
-
 .day:nth-child(7n) {
   border-right: none;
 }
