@@ -121,6 +121,7 @@ Claude 코워크에서 대화로 짠 계획(일정)을 MCP로 업로드하면, �
   1. `app/src-tauri/tauri.conf.json`의 `version` 올리기
   2. 서명 빌드: `$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content $env:USERPROFILE\.tauri\coworkcal.key -Raw; $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""; cd app; npm.cmd run tauri build`
   3. 커밋·푸시 후 저장소 루트에서 `node scripts/release.mjs "바뀐 점"`
+- 항상 최신 설치 파일 주소 (웹사이트 다운로드 버튼용): https://github.com/yde5536/URIGG-ClaudeCalender/releases/latest/download/CoworkCalendar-setup.exe
 - 트레이: 전체 창 열기 / 위젯 위치 초기화 / Windows 시작 시 실행 / 종료
 - 탐색기가 재시작돼 위젯이 사라지면 바탕화면이 다시 생길 때 자동으로 다시 띄움
 - 오프라인: 위젯이 마지막으로 받은 일정을 PC에 저장해 두고 연결이 끊기면 그것을 표시

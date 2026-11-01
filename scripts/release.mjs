@@ -2,6 +2,11 @@
 //
 // 사용법 (저장소 루트에서, 먼저 app/src-tauri/tauri.conf.json의 version을 올리고 서명된 빌드를 마친 뒤):
 //   node scripts/release.mjs "이번 버전에서 바뀐 점"
+//   node scripts/release.mjs --stable-only   이미 있는 현재 버전 릴리스에 고정 이름 설치 파일만 추가
+//
+// 설치 파일은 버전이 붙은 이름과 함께 고정 이름(CoworkCalendar-setup.exe)으로도 올린다.
+// 그래서 웹사이트 등에서 아래 주소가 항상 최신 버전을 내려받는다:
+//   https://github.com/yde5536/URIGG-ClaudeCalender/releases/latest/download/CoworkCalendar-setup.exe
 //
 // GitHub 토큰은 GITHUB_TOKEN 환경 변수, 없으면 git에 저장된 github.com 자격 증명을 쓴다.
 
@@ -11,11 +16,13 @@ import { basename, join } from "node:path";
 
 const REPO = "yde5536/URIGG-ClaudeCalender";
 const API = `https://api.github.com/repos/${REPO}`;
+const STABLE_NAME = "CoworkCalendar-setup.exe";
 
+const stableOnly = process.argv[2] === "--stable-only";
 const conf = JSON.parse(readFileSync("app/src-tauri/tauri.conf.json", "utf8"));
 const version = conf.version;
 const tag = `v${version}`;
-const notes = process.argv[2] ?? `${tag} 업데이트`;
+const notes = (!stableOnly && process.argv[2]) || `${tag} 업데이트`;
 
 const nsisDir = "app/src-tauri/target/release/bundle/nsis";
 const installer = readdirSync(nsisDir).find((f) => f.includes(`_${version}_`) && f.endsWith("-setup.exe"));
@@ -45,7 +52,25 @@ async function gh(url, init = {}) {
   return res.status === 204 ? null : res.json();
 }
 
+async function upload(release, name, body, contentType) {
+  const url = release.upload_url.replace(/\{.*\}$/, `?name=${encodeURIComponent(name)}`);
+  await gh(url, { method: "POST", headers: { "Content-Type": contentType }, body });
+  console.log(`  올림: ${name}`);
+}
+
 const existing = await fetch(`${API}/releases/tags/${tag}`, { headers: { Authorization: `Bearer ${token}` } });
+
+if (stableOnly) {
+  if (!existing.ok) throw new Error(`${tag} 릴리스가 없습니다.`);
+  const release = await existing.json();
+  if (release.assets.some((a) => a.name === STABLE_NAME)) {
+    console.log(`${tag}에 이미 ${STABLE_NAME}이 있습니다.`);
+  } else {
+    await upload(release, STABLE_NAME, readFileSync(installerPath), "application/octet-stream");
+  }
+  process.exit(0);
+}
+
 if (existing.ok) throw new Error(`${tag} 릴리스가 이미 있습니다. tauri.conf.json의 version을 올리세요.`);
 
 const release = await gh(`${API}/releases`, {
@@ -61,14 +86,9 @@ const latest = {
   platforms: { "windows-x86_64": { signature, url: assetUrl(installer) } },
 };
 
-async function upload(name, body, contentType) {
-  const url = release.upload_url.replace(/\{.*\}$/, `?name=${encodeURIComponent(name)}`);
-  await gh(url, { method: "POST", headers: { "Content-Type": contentType }, body });
-  console.log(`  올림: ${name}`);
-}
-
 console.log(`${tag} 릴리스 생성`);
-await upload(basename(installerPath), readFileSync(installerPath), "application/octet-stream");
-await upload(`${installer}.sig`, signature, "text/plain");
-await upload("latest.json", JSON.stringify(latest, null, 2), "application/json");
+await upload(release, basename(installerPath), readFileSync(installerPath), "application/octet-stream");
+await upload(release, STABLE_NAME, readFileSync(installerPath), "application/octet-stream");
+await upload(release, `${installer}.sig`, signature, "text/plain");
+await upload(release, "latest.json", JSON.stringify(latest, null, 2), "application/json");
 console.log(`완료: ${release.html_url}`);
