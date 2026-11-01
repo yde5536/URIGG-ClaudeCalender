@@ -132,6 +132,10 @@ export function MainCalendar() {
         eventTimeFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
         slotLabelFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
         scrollTime="08:00:00"
+        // 월 보기에서 주/일 보기로 바꿀 때도 0시가 아니라 오전 8시부터 보이게
+        viewDidMount={(arg) => {
+          if (arg.view.type.startsWith("timeGrid")) setTimeout(() => arg.view.calendar.scrollToTime("08:00:00"));
+        }}
         nowIndicator
         dayMaxEvents
         selectable

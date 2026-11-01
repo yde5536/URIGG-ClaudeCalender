@@ -158,7 +158,7 @@
 .main-app .fc .fc-daygrid-day-number {
   position: relative;
   padding: 8px 10px 4px;
-  color: var(--muted);
+  color: var(--text);
   font-size: 15px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
