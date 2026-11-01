@@ -8,7 +8,8 @@ mod desktop {
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         EnumWindows, FindWindowExW, FindWindowW, GetParent, GetWindow, GetWindowLongPtrW, GetWindowRect, SetParent,
         SetWindowLongPtrW, SetWindowPos, GWL_STYLE, GW_CHILD, HWND_TOP, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
-        SWP_NOSIZE, SWP_SHOWWINDOW, WS_CHILD, WS_POPUP,
+        SWP_NOSIZE, SWP_SHOWWINDOW, WS_CAPTION, WS_CHILD, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU,
+        WS_THICKFRAME,
     };
 
     fn wide(s: &str) -> Vec<u16> {
@@ -53,8 +54,10 @@ mod desktop {
                 // 화면 좌표를 기억했다가 부모 기준 좌표로 바꿔 같은 자리에 둔다
                 let mut r: RECT = std::mem::zeroed();
                 GetWindowRect(hwnd, &mut r);
+                // 자식 창에 제목줄·테두리 속성이 남아 있으면 Windows가 옛날식 제목줄을 직접 그리므로 모두 뺀다
+                let frame = (WS_POPUP | WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX) as isize;
                 let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-                SetWindowLongPtrW(hwnd, GWL_STYLE, (style & !(WS_POPUP as isize)) | WS_CHILD as isize);
+                SetWindowLongPtrW(hwnd, GWL_STYLE, (style & !frame) | WS_CHILD as isize);
                 SetParent(hwnd, host);
                 let mut pt = POINT { x: r.left, y: r.top };
                 ScreenToClient(host, &mut pt);
