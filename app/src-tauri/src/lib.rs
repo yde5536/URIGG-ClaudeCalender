@@ -1,12 +1,15 @@
 #[cfg(windows)]
 mod desktop;
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager, RunEvent, WebviewWindow, WebviewWindowBuilder, WindowEvent};
+use tauri::{
+    AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, RunEvent, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+};
 use tauri_plugin_autostart::ManagerExt;
 
 const WIDGET: &str = "widget";
@@ -18,6 +21,15 @@ const AUTOSTART_OFF_MARKER: &str = "autostart-disabled";
 /// 사용자가 직접 종료할 때만 true. 그 외에 창이 사라지면(탐색기 재시작 등) 위젯을 다시 띄운다.
 static QUITTING: AtomicBool = AtomicBool::new(false);
 
+/// 지금 떠 있는 위젯 창의 이름. 탐색기 재시작으로 사라진 창은 Tauri가 알아채지 못해 이름이 계속 남으므로,
+/// 다시 만들 때는 widget-2, widget-3 … 새 이름을 쓴다.
+static WIDGET_LABEL: Mutex<String> = Mutex::new(String::new());
+static WIDGET_SEQ: AtomicUsize = AtomicUsize::new(2);
+/// 위젯의 마지막 화면 위치·크기. 다시 만들 때 같은 자리에 둔다.
+static LAST_RECT: Mutex<Option<(i32, i32, i32, i32)>> = Mutex::new(None);
+/// 다시 만드는 중이면 true (중복 요청 방지)
+static RECREATING: AtomicBool = AtomicBool::new(false);
+
 fn quit(app: &AppHandle) {
     QUITTING.store(true, Ordering::SeqCst);
     app.exit(0);
@@ -28,30 +40,49 @@ fn quit_app(app: AppHandle) {
     quit(&app);
 }
 
+fn current_widget(app: &AppHandle) -> Option<WebviewWindow> {
+    let label = WIDGET_LABEL.lock().unwrap().clone();
+    app.get_webview_window(if label.is_empty() { WIDGET } else { &label })
+}
+
 fn open_main(app: &AppHandle) {
-    let _ = app.emit_to(WIDGET, OPEN_MAIN_EVENT, ());
+    // 위젯 창 이름이 바뀔 수 있어 전체에 보낸다 (듣는 쪽은 위젯뿐)
+    let _ = app.emit(OPEN_MAIN_EVENT, ());
 }
 
 /// 위젯을 바탕화면에 넣고, 바탕화면이 바뀌어도 계속 붙어 있도록 주기적으로 확인한다.
-fn setup_widget(window: &WebviewWindow) {
+/// 창이 사라진 것을 발견하면(탐색기 재시작 등) 다시 만든다.
+fn setup_widget(app: &AppHandle, window: &WebviewWindow) {
+    *WIDGET_LABEL.lock().unwrap() = window.label().to_string();
     #[cfg(windows)]
     if let Ok(hwnd) = window.hwnd() {
         let hwnd = hwnd.0 as isize;
         desktop::suppress_caption(hwnd);
         desktop::embed(hwnd);
+        let app = app.clone();
         std::thread::spawn(move || {
             while desktop::is_alive(hwnd) {
+                if let Some(rect) = desktop::screen_rect(hwnd) {
+                    *LAST_RECT.lock().unwrap() = Some(rect);
+                }
                 std::thread::sleep(Duration::from_secs(3));
                 desktop::embed(hwnd);
+            }
+            eprintln!("[widget] window {hwnd:#x} is gone");
+            if !QUITTING.load(Ordering::SeqCst) {
+                recreate_widget(app);
             }
         });
     }
     #[cfg(not(windows))]
-    let _ = window;
+    let _ = (app, window);
 }
 
 /// 위젯은 탐색기 창의 자식이라 탐색기가 재시작되면 함께 사라진다. 바탕화면이 다시 생기면 새로 만든다.
 fn recreate_widget(app: AppHandle) {
+    if RECREATING.swap(true, Ordering::SeqCst) {
+        return;
+    }
     std::thread::spawn(move || {
         #[cfg(windows)]
         while !desktop::desktop_ready() {
@@ -61,22 +92,37 @@ fn recreate_widget(app: AppHandle) {
         std::thread::sleep(Duration::from_secs(2));
         let handle = app.clone();
         let _ = app.run_on_main_thread(move || {
-            if handle.get_webview_window(WIDGET).is_some() {
-                return;
+            let built = handle
+                .config()
+                .app
+                .windows
+                .iter()
+                .find(|w| w.label == WIDGET)
+                .cloned()
+                .ok_or(tauri::Error::WindowNotFound)
+                .and_then(|mut config| {
+                    config.label = format!("{WIDGET}-{}", WIDGET_SEQ.fetch_add(1, Ordering::SeqCst));
+                    WebviewWindowBuilder::from_config(&handle, &config)?.build()
+                });
+            match built {
+                Ok(window) => {
+                    if let Some((x, y, w, h)) = *LAST_RECT.lock().unwrap() {
+                        let _ = window.set_size(PhysicalSize::new(w as u32, h as u32));
+                        let _ = window.set_position(PhysicalPosition::new(x, y));
+                    }
+                    eprintln!("[widget] recreated as {}", window.label());
+                    setup_widget(&handle, &window);
+                }
+                Err(err) => eprintln!("[widget] recreate failed: {err}"),
             }
-            let Some(config) = handle.config().app.windows.iter().find(|w| w.label == WIDGET).cloned() else {
-                return;
-            };
-            if let Ok(window) = WebviewWindowBuilder::from_config(&handle, &config).and_then(|b| b.build()) {
-                setup_widget(&window);
-            }
+            RECREATING.store(false, Ordering::SeqCst);
         });
     });
 }
 
 /// 위젯이 화면 밖으로 나가 찾을 수 없을 때를 위해 주 모니터 오른쪽 위로 되돌린다.
 fn reset_widget_position(app: &AppHandle) {
-    let Some(window) = app.get_webview_window(WIDGET) else { return };
+    let Some(window) = current_widget(app) else { return };
     let (Ok(Some(monitor)), Ok(size)) = (window.primary_monitor(), window.outer_size()) else { return };
     let margin = (48.0 * monitor.scale_factor()) as i32;
     let x = monitor.position().x + monitor.size().width as i32 - size.width as i32 - margin;
@@ -175,12 +221,13 @@ pub fn run() {
             }
             build_tray(handle)?;
             if let Some(widget) = app.get_webview_window(WIDGET) {
-                setup_widget(&widget);
+                setup_widget(handle, &widget);
             }
             Ok(())
         })
         .on_window_event(|window, event| {
-            if window.label() == WIDGET && matches!(event, WindowEvent::Destroyed) && !QUITTING.load(Ordering::SeqCst) {
+            if window.label().starts_with(WIDGET) && matches!(event, WindowEvent::Destroyed) && !QUITTING.load(Ordering::SeqCst) {
+                eprintln!("[widget] destroyed event");
                 recreate_widget(window.app_handle().clone());
             }
         })

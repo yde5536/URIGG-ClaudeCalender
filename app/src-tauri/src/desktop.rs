@@ -128,6 +128,12 @@ pub fn embed(hwnd: isize) {
     }
 }
 
+/// 화면 좌표 기준 창 위치와 크기 (x, y, 너비, 높이)
+pub fn screen_rect(hwnd: isize) -> Option<(i32, i32, i32, i32)> {
+    let mut r: RECT = unsafe { std::mem::zeroed() };
+    (unsafe { GetWindowRect(hwnd as HWND, &mut r) } != 0).then(|| (r.left, r.top, r.right - r.left, r.bottom - r.top))
+}
+
 /// 위젯을 화면 좌표 (x, y)로 옮긴다. 자식 창이라 부모 기준 좌표로 바꿔서 옮긴다.
 pub fn move_to(hwnd: isize, x: i32, y: i32) {
     let hwnd = hwnd as HWND;
