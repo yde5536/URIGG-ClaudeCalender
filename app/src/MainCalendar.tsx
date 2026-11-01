@@ -42,10 +42,11 @@ function fetchEvents(
 }
 
 function renderEvent(arg: EventContentArg) {
-  const row = arg.event.extendedProps.row as CalEvent;
+  // 주/일 보기에서 빈 칸을 드래그할 때 그려지는 선택 미리보기에는 row가 없다
+  const row = arg.event.extendedProps.row as CalEvent | undefined;
   return (
     <div className="fc-ev">
-      {row.emoji && <span className="fc-ev-emoji">{row.emoji}</span>}
+      {row?.emoji && <span className="fc-ev-emoji">{row.emoji}</span>}
       {arg.timeText && <span className="fc-ev-time">{arg.timeText}</span>}
       <span className="fc-ev-title">{arg.event.title}</span>
     </div>
