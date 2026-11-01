@@ -13,7 +13,7 @@ import {
 import { supabase, type CalEvent } from "./supabase";
 import { Icon } from "./Icon";
 import { useEvents, useRealtimeVersion } from "./useEvents";
-import { closeApp, openMainWindow } from "./window";
+import { closeApp, openMainWindow, startWidgetResize } from "./window";
 
 const UPCOMING_DAYS = 7;
 const UPCOMING_MAX = 6;
@@ -215,6 +215,7 @@ export function Widget() {
         )}
         {error && <p className="error">불러오기 실패: {error}</p>}
       </section>
+      <div className="resize-grip" onMouseDown={startWidgetResize} title="크기 조절" aria-hidden="true" />
     </div>
   );
 }

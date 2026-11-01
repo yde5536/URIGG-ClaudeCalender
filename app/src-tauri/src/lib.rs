@@ -3,13 +3,15 @@ use tauri::Manager;
 #[cfg(windows)]
 mod desktop {
     use windows_sys::core::BOOL;
-    use windows_sys::Win32::Foundation::{HWND, LPARAM, POINT, RECT};
+    use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
+    use windows_sys::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
     use windows_sys::Win32::Graphics::Gdi::{
         RedrawWindow, ScreenToClient, RDW_ALLCHILDREN, RDW_ERASE, RDW_FRAME, RDW_INVALIDATE,
     };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        EnumWindows, FindWindowExW, FindWindowW, GetParent, GetWindow, GetWindowLongPtrW, GetWindowRect, SetParent,
-        SetWindowLongPtrW, SetWindowPos, GWL_STYLE, GW_CHILD, HWND_TOP, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
+        EnumWindows, FindWindowExW, FindWindowW, GetParent, GetWindow, GetWindowLongPtrW, GetWindowRect,
+        IsWindowVisible, SetParent, SetWindowLongPtrW, SetWindowPos, ShowWindow, GWL_STYLE, GW_CHILD, HWND_TOP,
+        SW_HIDE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, WM_NCACTIVATE, WM_NCPAINT,
         SWP_NOSIZE, SWP_SHOWWINDOW, WS_CAPTION, WS_CHILD, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU,
         WS_THICKFRAME,
     };
@@ -40,6 +42,43 @@ mod desktop {
             }
         }
         host
+    }
+
+    /// Tauri가 테두리 없는 창의 가장자리 크기 조절용으로 덮어두는 투명 창.
+    /// 자식 창이 되면 투명하게 그려지지 않고(제목 글씨가 비침) 크기 조절도 엉뚱한 창에 걸리므로 숨긴다.
+    /// 크기 조절은 위젯 오른쪽 아래 손잡이가 대신한다.
+    unsafe fn hide_resize_borders(hwnd: HWND) {
+        let class = wide("TAURI_DRAG_RESIZE_BORDERS");
+        unsafe {
+            let borders = FindWindowExW(hwnd, std::ptr::null_mut(), class.as_ptr(), std::ptr::null());
+            if !borders.is_null() && IsWindowVisible(borders) != 0 {
+                ShowWindow(borders, SW_HIDE);
+            }
+        }
+    }
+
+    /// 창이 활성화될 때 Windows는 제목줄이 없어도 창 표면에 제목 글씨를 그린다(DefWindowProc의 WM_NCACTIVATE/WM_NCPAINT).
+    /// 일반 창은 Tauri가 막아주지만 자식 창이 된 위젯은 안 막히므로, 그 두 메시지를 그리지 않고 처리한다.
+    unsafe extern "system" fn no_caption_proc(
+        hwnd: HWND,
+        msg: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+        _id: usize,
+        _data: usize,
+    ) -> LRESULT {
+        match msg {
+            WM_NCACTIVATE => 1,
+            WM_NCPAINT => 0,
+            _ => unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) },
+        }
+    }
+
+    /// 창을 만든 스레드(메인 스레드)에서 한 번 호출해야 한다.
+    pub fn suppress_caption(hwnd: isize) {
+        unsafe {
+            SetWindowSubclass(hwnd as HWND, Some(no_caption_proc), 1, 0);
+        }
     }
 
     /// 위젯을 바탕화면 아이콘 창의 자식 창으로 넣는다.
@@ -74,7 +113,9 @@ mod desktop {
                 );
                 // 스타일을 바꾸기 전 잠깐 그려진 제목줄이 바탕화면에 잔상으로 남지 않게 다시 그린다
                 RedrawWindow(host, std::ptr::null(), std::ptr::null_mut(), RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_FRAME);
-            } else if GetWindow(host, GW_CHILD) != hwnd {
+            }
+            hide_resize_borders(hwnd);
+            if GetWindow(host, GW_CHILD) != hwnd {
                 // 탐색기가 아이콘 층을 다시 위로 올리면 위젯을 맨 위로
                 SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
             }
@@ -92,6 +133,7 @@ pub fn run() {
             if let Some(widget) = app.get_webview_window("widget") {
                 if let Ok(hwnd) = widget.hwnd() {
                     let hwnd = hwnd.0 as isize;
+                    desktop::suppress_caption(hwnd);
                     desktop::embed(hwnd);
                     // 배경화면 프로그램이 아이콘 창을 바꾸거나 아이콘 층을 위로 올릴 수 있어 주기적으로 다시 확인
                     std::thread::spawn(move || loop {
