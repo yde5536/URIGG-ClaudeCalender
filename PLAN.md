@@ -126,6 +126,6 @@ Claude 코워크에서 대화로 짠 계획(일정)을 MCP로 업로드하면, �
 - 탐색기가 재시작돼 위젯이 사라지면 바탕화면이 다시 생길 때 자동으로 다시 띄움
 - 오프라인: 위젯이 마지막으로 받은 일정을 PC에 저장해 두고 연결이 끊기면 그것을 표시
 - 알림 기능은 사용자 요청으로 제외
-- 릴리스: https://github.com/yde5536/URIGG-ClaudeCalender/releases (최신 v0.1.2, 2026-11-01)
+- 릴리스: https://github.com/yde5536/URIGG-ClaudeCalender/releases (최신 v0.1.3, 2026-11-01)
 - 아이콘을 바꾸면 빌드 캐시 때문에 exe에 반영되지 않을 수 있음 → `cargo clean --release -p app` 후 빌드
 - 탐색기가 재시작되면 위젯은 widget-2, widget-3 … 새 이름으로 다시 만들어짐 (Tauri가 사라진 창을 감지하지 못하므로)
