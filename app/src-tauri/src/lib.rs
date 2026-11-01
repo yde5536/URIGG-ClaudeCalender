@@ -3,9 +3,12 @@ use tauri::Manager;
 #[cfg(windows)]
 mod desktop {
     use windows_sys::core::BOOL;
-    use windows_sys::Win32::Foundation::{HWND, LPARAM};
+    use windows_sys::Win32::Foundation::{HWND, LPARAM, POINT, RECT};
+    use windows_sys::Win32::Graphics::Gdi::ScreenToClient;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        EnumWindows, FindWindowExW, FindWindowW, GetWindowLongPtrW, SetWindowLongPtrW, GWLP_HWNDPARENT,
+        EnumWindows, FindWindowExW, FindWindowW, GetParent, GetWindow, GetWindowLongPtrW, GetWindowRect, SetParent,
+        SetWindowLongPtrW, SetWindowPos, GWL_STYLE, GW_CHILD, HWND_TOP, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
+        SWP_NOSIZE, SWP_SHOWWINDOW, WS_CHILD, WS_POPUP,
     };
 
     fn wide(s: &str) -> Vec<u16> {
@@ -36,16 +39,37 @@ mod desktop {
         host
     }
 
-    /// 위젯 창의 소유자를 바탕화면 아이콘 창으로 지정한다.
-    /// 바탕화면에 딸린 창이 되므로 Win+D(바탕화면 보기)를 눌러도 숨겨지지 않는다.
-    pub fn pin(hwnd: isize) {
-        let host = icon_host() as isize;
-        if host == 0 {
+    /// 위젯을 바탕화면 아이콘 창의 자식 창으로 넣는다.
+    /// 바탕화면의 일부가 되므로 다른 창들 위로 올라오지 않고, Win+D를 눌러도 바탕화면과 함께 보인다.
+    /// 아이콘 층(SHELLDLL_DefView)보다 위에 둬야 클릭이 위젯으로 온다.
+    pub fn embed(hwnd: isize) {
+        let hwnd = hwnd as HWND;
+        let host = icon_host();
+        if host.is_null() {
             return;
         }
         unsafe {
-            if GetWindowLongPtrW(hwnd as HWND, GWLP_HWNDPARENT) != host {
-                SetWindowLongPtrW(hwnd as HWND, GWLP_HWNDPARENT, host);
+            if GetParent(hwnd) != host {
+                // 화면 좌표를 기억했다가 부모 기준 좌표로 바꿔 같은 자리에 둔다
+                let mut r: RECT = std::mem::zeroed();
+                GetWindowRect(hwnd, &mut r);
+                let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+                SetWindowLongPtrW(hwnd, GWL_STYLE, (style & !(WS_POPUP as isize)) | WS_CHILD as isize);
+                SetParent(hwnd, host);
+                let mut pt = POINT { x: r.left, y: r.top };
+                ScreenToClient(host, &mut pt);
+                SetWindowPos(
+                    hwnd,
+                    HWND_TOP,
+                    pt.x,
+                    pt.y,
+                    0,
+                    0,
+                    SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_FRAMECHANGED,
+                );
+            } else if GetWindow(host, GW_CHILD) != hwnd {
+                // 탐색기가 아이콘 층을 다시 위로 올리면 위젯을 맨 위로
+                SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
             }
         }
     }
@@ -61,11 +85,11 @@ pub fn run() {
             if let Some(widget) = app.get_webview_window("widget") {
                 if let Ok(hwnd) = widget.hwnd() {
                     let hwnd = hwnd.0 as isize;
-                    desktop::pin(hwnd);
-                    // 탐색기 재시작이나 배경화면 프로그램이 아이콘 창을 바꿀 수 있어 주기적으로 다시 확인
+                    desktop::embed(hwnd);
+                    // 배경화면 프로그램이 아이콘 창을 바꾸거나 아이콘 층을 위로 올릴 수 있어 주기적으로 다시 확인
                     std::thread::spawn(move || loop {
                         std::thread::sleep(std::time::Duration::from_secs(3));
-                        desktop::pin(hwnd);
+                        desktop::embed(hwnd);
                     });
                 }
             }
