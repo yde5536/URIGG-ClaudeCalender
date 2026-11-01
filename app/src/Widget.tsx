@@ -82,10 +82,11 @@ export function Widget() {
   }, [today]);
 
   const grid = useMemo(() => monthGrid(cursor.getFullYear(), cursor.getMonth()), [cursor]);
-  const month = useEvents(grid[0], addDays(grid[41], 1), version);
+  const lastCell = grid[grid.length - 1];
+  const month = useEvents(grid[0], addDays(lastCell, 1), version);
   const near = useEvents(today, addDays(today, UPCOMING_DAYS + 1), version);
 
-  const selectedInGrid = selected >= grid[0] && selected <= grid[41];
+  const selectedInGrid = selected >= grid[0] && selected <= lastCell;
   const dayEvents = (selectedInGrid ? month.events : near.events).filter((e) => isOnDay(e, selected));
   const tomorrow = addDays(today, 1);
   const upcoming = sameDay(selected, today)

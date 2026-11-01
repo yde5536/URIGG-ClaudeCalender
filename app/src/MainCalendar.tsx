@@ -6,7 +6,7 @@ import interactionPlugin, { type EventResizeDoneArg } from "@fullcalendar/intera
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import { listen } from "@tauri-apps/api/event";
-import { addDays } from "./dates";
+import { WEEKDAYS, addDays } from "./dates";
 import { EventDialog, type DialogTarget } from "./EventDialog";
 import { moveEvent } from "./eventsApi";
 import { supabase, type CalEvent } from "./supabase";
@@ -114,6 +114,18 @@ export function MainCalendar() {
           },
         }}
         eventDisplay="block"
+        fixedWeekCount={false}
+        dayCellContent={(arg) => arg.dayNumberText.replace(/일$/, "")}
+        dayHeaderContent={(arg) =>
+          arg.view.type === "dayGridMonth" ? (
+            WEEKDAYS[arg.date.getDay()]
+          ) : (
+            <span className="fc-dh">
+              <span className="fc-dh-wd">{WEEKDAYS[arg.date.getDay()]}</span>
+              <span className="fc-dh-day">{arg.date.getDate()}</span>
+            </span>
+          )
+        }
         height="100%"
         events={fetchEvents}
         eventContent={renderEvent}

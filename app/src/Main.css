@@ -97,10 +97,62 @@
   text-decoration: none;
 }
 
-/* 주말은 한 단계 어둡게 */
-.main-app .fc .fc-day-sat,
-.main-app .fc .fc-day-sun {
+/* 주말은 한 단계 어둡게 (요일 머리칸 제외) */
+.main-app .fc .fc-daygrid-day.fc-day-sat,
+.main-app .fc .fc-daygrid-day.fc-day-sun,
+.main-app .fc .fc-timegrid-col.fc-day-sat,
+.main-app .fc .fc-timegrid-col.fc-day-sun {
   background: #0a0909;
+}
+
+/* 주/일 보기 요일 머리칸: 요일(작게) + 날짜(크게) */
+.fc-dh {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.fc-dh-day {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* "종일" 줄: 낮게, 구분선은 얇게 */
+.main-app .fc .fc-timegrid-divider {
+  padding: 0;
+  background: transparent;
+  border-color: var(--rule);
+}
+
+.main-app .fc .fc-timegrid .fc-daygrid-body .fc-daygrid-day-events {
+  min-height: 24px;
+  margin-bottom: 4px;
+}
+
+/* 스크롤바: Windows 기본 화살표 대신 얇은 막대 */
+.main-app ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.main-app ::-webkit-scrollbar-track,
+.main-app ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.main-app ::-webkit-scrollbar-thumb {
+  background: var(--raised);
+  border-radius: 4px;
+}
+
+.main-app ::-webkit-scrollbar-button {
+  display: none;
+}
+
+.main-app .fc .fc-daygrid-day-top {
+  flex-direction: row; /* 날짜를 칸의 왼쪽 위에 */
 }
 
 .main-app .fc .fc-daygrid-day-number {

@@ -11,11 +11,13 @@ export const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMo
 export const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
-/** 일요일부터 시작하는 6주(42칸) 달력 */
+/** 일요일부터 시작하는 달력. 그 달이 걸친 주만 (4~6주) */
 export function monthGrid(year: number, month: number): Date[] {
   const first = new Date(year, month, 1);
   const start = addDays(first, -first.getDay());
-  return Array.from({ length: 42 }, (_, i) => addDays(start, i));
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const weeks = Math.ceil((first.getDay() + daysInMonth) / 7);
+  return Array.from({ length: weeks * 7 }, (_, i) => addDays(start, i));
 }
 
 export const pad2 = (n: number) => String(n).padStart(2, "0");
